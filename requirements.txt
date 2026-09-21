@@ -1,0 +1,19 @@
+# Environment for every script in this package.
+
+torch
+torchvision
+open_clip_torch
+numpy
+pandas
+pyarrow
+pillow
+tqdm
+scikit-learn
+matplotlib
+huggingface_hub
+datasets
+pypdfium2
+arxiv
+
+# The sparc package (sparc.model.get_sae_model_class) is not distributed on
+# PyPI. Install it together with the checkpoints listed in the README.
