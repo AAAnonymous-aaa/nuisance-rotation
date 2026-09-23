@@ -102,7 +102,7 @@ def figure_bound():
     ax.grid(alpha=0.25, linewidth=0.5)
     ax.legend(fontsize=6.5, frameon=False, ncol=2, loc="upper left")
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, "fig4_bound.pdf"))
+    fig.savefig(os.path.join(OUT_DIR, "fig2_bound.pdf"))
     plt.close(fig)
 
 
@@ -123,6 +123,7 @@ def figure_teaser():
     ax.set_yscale("log")
     ax.set_xlabel("dimension, sorted", fontsize=7)
     ax.set_ylabel("$c_d / v_d$, normalised", fontsize=7)
+    ax.set_title("(a) per-dimension ratio", fontsize=7, pad=3)
     ax.legend(fontsize=6, frameon=False)
     ax.grid(alpha=0.25, linewidth=0.5)
     ax.tick_params(labelsize=6)
@@ -152,10 +153,12 @@ def figure_teaser():
     ax2.set_xlim(0, 1.3)
     ax2.set_xlabel("spread of $c_d / v_d$", fontsize=7)
     ax2.set_ylabel("headroom of a per-dimension rescaling  (%)", fontsize=7)
+    ax2.set_title("(b) spread against headroom", fontsize=7, pad=3)
     ax2.legend(fontsize=5.5, frameon=False, ncol=2, loc="upper left")
     ax2.grid(alpha=0.25, linewidth=0.5)
     ax2.tick_params(labelsize=6)
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.09, right=0.985, top=0.84, bottom=0.22,
+                        wspace=0.28)
     fig.savefig(os.path.join(OUT_DIR, "fig1_teaser.pdf"))
     plt.close(fig)
 
@@ -189,12 +192,13 @@ def figure_geometry():
     ax.axhline(1.7 / np.sqrt(6), color="grey", linestyle=":", linewidth=1.0)
     ax.text(0.05, 1.7 / np.sqrt(6) + 0.02, "floor, L=6", fontsize=6, color="grey")
     ax.set_xticks(range(len(rows)))
-    ax.set_xticklabels([n.replace(" ", "\n") for n in names], fontsize=6)
+    ax.set_xticklabels([n.replace(" ", "\n") for n in names], fontsize=5.5,
+                       rotation=35, ha="right")
     ax.set_ylabel("spread", fontsize=7)
     ax.set_title("clip_openai", fontsize=7)
     ax.tick_params(labelsize=6)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, "fig2_geometry.pdf"))
+    fig.savefig(os.path.join(OUT_DIR, "fig4_geometry.pdf"))
     plt.close(fig)
 
 
@@ -220,7 +224,7 @@ def figure_strength():
         ax.tick_params(labelsize=7)
         ax.legend(fontsize=6, frameon=False)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, "fig5_strength.pdf"))
+    fig.savefig(os.path.join(OUT_DIR, "fig6_strength.pdf"))
     plt.close(fig)
 
 
@@ -228,13 +232,21 @@ def figure_rank_calibration():
     rank = load("rank_sweep.json")
     pair = load("pair_curve.json")
     fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.3))
+    highlight = {"documents/clip_openai": "#1f77b4",
+                 "shapes/clip_openai": "#d62728",
+                 "arxiv/clip_openai": "#9467bd"}
     for key, row in rank.items():
         ranks = [int(k.split("=")[1]) for k in row]
         recalls = [row[k]["NN_R@1"] for k in row]
-        axes[0].plot(ranks, recalls, marker="o", markersize=3, label=key)
+        if key in highlight:
+            axes[0].plot(ranks, recalls, marker="o", markersize=3,
+                         color=highlight[key], label=key, zorder=3)
+        else:
+            axes[0].plot(ranks, recalls, marker="o", markersize=2,
+                         linewidth=0.7, color="#c8c8c8", zorder=1)
     axes[0].set_xlabel("rank of the removed subspace")
     axes[0].set_ylabel("NN_R@1")
-    axes[0].legend(fontsize=5, frameon=False)
+    axes[0].set_title("all 15 settings, three highlighted", fontsize=6.5)
 
     sizes = sorted(int(k) for k in pair["sizes"])
     axes[1].plot(sizes, [pair["sizes"][str(s)]["NN_R@1"] for s in sizes],
@@ -257,7 +269,10 @@ def figure_rank_calibration():
     for ax in axes:
         ax.grid(alpha=0.25, linewidth=0.5)
         ax.tick_params(labelsize=6)
-    fig.tight_layout()
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=5.5,
+               frameon=False)
+    fig.subplots_adjust(left=0.07, right=0.99, top=0.86, bottom=0.30)
     fig.savefig(os.path.join(OUT_DIR, "fig8_rank_calibration.pdf"))
     plt.close(fig)
 
@@ -280,7 +295,10 @@ def figure_budget():
     ax.axhline(scaled["dense"]["NN_R@1"], color="black", linestyle=":",
                linewidth=0.8)
     ax.axvline(16.8, color="red", linestyle="--", linewidth=0.9)
-    ax.text(17, 0.35, "17 of 64 slots", fontsize=6, color="red", rotation=90)
+    low, high = ax.get_ylim()
+    ax.text(18.5, low + 0.03 * (high - low), "17 of 64 slots", fontsize=6,
+            color="red", va="bottom", ha="left",
+            bbox=dict(facecolor="white", edgecolor="none", pad=0.5))
     ax.set_xscale("log", base=2)
     ax.set_xlabel("top-$k$ budget for the content stream")
     ax.set_ylabel("NN_R@1")
@@ -319,14 +337,14 @@ def figure_prediction():
     ax.legend(fontsize=6, frameon=False, loc="upper left")
     ax.tick_params(labelsize=7)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, "fig3_prediction.pdf"))
+    fig.savefig(os.path.join(OUT_DIR, "fig5_prediction.pdf"))
     plt.close(fig)
 
 
 def figure_method_slot():
 
 
-    path = os.path.join(OUT_DIR, "fig6_method.pdf")
+    path = os.path.join(OUT_DIR, "fig3_method.pdf")
     if os.path.exists(path):
         return
     fig = plt.figure(figsize=(3.4, 2.1))
@@ -336,7 +354,7 @@ def figure_method_slot():
     ax.axis("off")
     ax.add_patch(plt.Rectangle((0.015, 0.015), 0.97, 0.97, fill=False,
                                linestyle="--", linewidth=1.0, edgecolor="#808080"))
-    ax.text(0.5, 0.90, "FIGURE 6 SLOT", ha="center", va="center",
+    ax.text(0.5, 0.90, "FIGURE 3 SLOT", ha="center", va="center",
             fontsize=9, color="#404040")
     ax.text(0.5, 0.75, "the method overview, to be drawn", ha="center",
             va="center", fontsize=7, style="italic", color="#404040")
@@ -344,7 +362,7 @@ def figure_method_slot():
             ha="center", va="center", fontsize=5.6, color="#404040")
     ax.text(0.5, 0.43, "right: x  ->  x - B B^T x, one matrix product at inference",
             ha="center", va="center", fontsize=5.6, color="#404040")
-    ax.text(0.5, 0.24, "overwrite figures/fig6_method.pdf with the drawing", ha="center",
+    ax.text(0.5, 0.24, "overwrite figures/fig3_method.pdf with the drawing", ha="center",
             va="center", fontsize=5.6, color="#404040")
     ax.text(0.5, 0.14, "keep the aspect ratio, or change the width in the tex",
             ha="center", va="center", fontsize=5.6, color="#404040")

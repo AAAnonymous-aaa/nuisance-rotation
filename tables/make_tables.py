@@ -32,6 +32,30 @@ def write(name, body):
     print("wrote", os.path.join("paper", "tables", name))
 
 
+def escape(text):
+    out = str(text)
+    out = out.replace("~", "\\textasciitilde{}")
+    out = out.replace("^", "\\textasciicircum{}")
+    out = out.replace("\\", "\\textbackslash{}")
+    for char in ("&", "%", "$", "#", "_"):
+        out = out.replace(char, "\\" + char)
+    return out
+
+
+DOMAIN_LABEL = {
+    "real scans wide": "arxiv",
+    "real scans funsd": "real scans",
+    "large real scans": "large scans",
+    "identity docs": "identity documents",
+    "real captures": "real captures",
+    "capture grid": "real captures",
+}
+
+
+def domain_label(name):
+    return DOMAIN_LABEL.get(str(name), str(name))
+
+
 SURVEYS = (
     ("documents", "backbone_survey.json", "rendered documents"),
     ("shapes", "shape_survey.json", "shapes on textures"),
@@ -70,7 +94,7 @@ def table_points():
             "\\midrule"]
     for row in rows:
         body.append(
-            f"{row['domain']} & {row['encoder'].replace('_', chr(92) + '_')} & "
+            f"{escape(domain_label(row['domain']))} & {escape(row['encoder'])} & "
             f"{row['ratio']:.2f} & {row['recall']:.3f} & {row['spread']:.3f} & "
             f"{row['oracle']:+.1f}\\% & {row['rotation']:+.1f}\\% \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
@@ -81,21 +105,21 @@ def table_points():
 def table_domains():
     from backbone_survey import load_any_grid
     grids = (
-        ("rendered documents", "survey_grid", "topic $\\times$ document",
+        ("documents", "survey_grid", "topic $\\times$ doc",
          "6-parameter layout", "synthetic"),
-        ("shapes on textures", "dataset/shape_grid", "shape and colour",
-         "texture, rotation, scale, offset", "synthetic"),
+        ("shapes", "dataset/shape_grid", "shape, colour",
+         "texture, rotation, scale", "synthetic"),
         ("real scans", "dataset/funsd_scan", "scanned form",
-         "second scan pass (digital)", "real content"),
-        ("large real scans", "dataset/docvqa_scan", "scanned page (industry archive)",
-         "second scan pass (digital)", "real content"),
+         "digital scan pass", "real content, digital pass"),
+        ("large scans", "dataset/docvqa_scan", "scanned page",
+         "digital scan pass", "real content, digital pass"),
         ("identity documents", "dataset/midv_full", "identity document",
-         "separate capture event", "real content, real nuisance"),
-        ("auxiliary capture grid", "dataset/midv_capture", "identity document",
-         "separate capture event", "real content, real nuisance"),
-        ("arXiv first pages", "dataset/real_scan_wide", "paper (12 categories)",
-         "render setting", "real content"),
-        ("training grid (method)", "dataset/sae_train", "topic $\\times$ document",
+         "separate capture", "real content, real capture"),
+        ("real captures", "dataset/midv_capture", "identity document (long series)",
+         "separate capture", "real content, real capture"),
+        ("arxiv", "dataset/real_scan_wide", "paper",
+         "render setting", "real content, render setting"),
+        ("training grid", "dataset/sae_train", "topic $\\times$ doc",
          "6-parameter layout", "synthetic"),
     )
     body = ["\\begin{tabular}{llrrl}", "\\toprule",
@@ -152,7 +176,7 @@ def table_seed_summary():
     grouped = {}
     for key, row in data.items():
         domain = key.split("/")[0]
-        grouped.setdefault(domain, []).append(row)
+        grouped.setdefault(domain_label(domain), []).append(row)
     body = ["\\begin{tabular}{lrrr}", "\\toprule",
             "domain & encoders & oracle sd (max) & spread rel.\\ sd (max) \\\\",
             "\\midrule"]
@@ -172,8 +196,8 @@ def table_heuristics():
         cells = []
         for key in ("idf", "mask", "denoise"):
             values = [row[key] for row in rows.values() if key in row]
-            cells.append(f"{min(values):+.1f} to {max(values):+.1f}" if values else "-")
-        body.append(f"{domain} & " + " & ".join(cells) + " \\\\")
+            cells.append(f"{min(values):+.1f}/{max(values):+.1f}" if values else "-")
+        body.append(f"{escape(domain_label(domain))} & " + " & ".join(cells) + " \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
     write("tab_heuristics.tex", "\n".join(body))
 
@@ -191,7 +215,7 @@ def table_method():
             name = {"raw": "raw", "trained_diagonal": "trained per-dimension",
                     "trained_linear": "trained mixing (linear)",
                     "trained_mlp": "trained mixing (MLP)"}.get(key, key.replace("_", " "))
-            body.append(f"{encoder.replace('_', chr(92) + '_')} & {name} & "
+            body.append(f"{escape(encoder)} & {name} & "
                         f"{rows[key]['ratio']:.3f} & {rows[key]['NN_R@1']:.3f} \\\\")
         body.append("\\midrule")
     body[-1] = "\\bottomrule"
@@ -209,7 +233,7 @@ def table_baselines():
                    "LEACE-style": "nuisance labels", "INLP": "nuisance labels",
                    "adversarial head": "nuisance labels"}
     for name, row in data.items():
-        body.append(f"{name} & {supervision.get(name, '--')} & {row['ratio']:.2f} & "
+        body.append(f"{escape(name)} & {supervision.get(name, '--')} & {row['ratio']:.2f} & "
                     f"{row['NN_R@1']:.3f} & {row['probe_accuracy']:.3f} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
     write("tab_baselines.tex", "\n".join(body))
@@ -227,9 +251,22 @@ def table_sae():
         clip = rows.get("clip", {}).get("NN_R@1", float("nan"))
         active = budget.get(domain, {}).get("released_mean_active")
         active_text = f"{active:.0f} of 64" if active else "--"
-        body.append(f"{domain} & {clip:.3f} & {dense:.3f} & {sparse:.3f} & {active_text} \\\\")
+        body.append(f"{escape(domain)} & {clip:.3f} & {dense:.3f} & {sparse:.3f} & {active_text} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
     write("tab_sae.tex", "\n".join(body))
+
+
+def table_sae_spread():
+    released = load("sae_case_study.json") or {}
+    body = ["\\begin{tabular}{lrrr}", "\\toprule",
+            "domain & CLIP & dense head & top-$k$ code \\\\", "\\midrule"]
+    for domain, rows in released.items():
+        clip = rows.get("clip", {}).get("spread", float("nan"))
+        dense = rows.get("sae:logits_clip_img", {}).get("spread", float("nan"))
+        sparse = rows.get("sae:sparse_codes_clip_img", {}).get("spread", float("nan"))
+        body.append(f"{escape(domain)} & {clip:.3f} & {dense:.3f} & {sparse:.3f} \\\\")
+    body += ["\\bottomrule", "\\end{tabular}", ""]
+    write("tab_sae_spread.tex", "\n".join(body))
 
 
 def table_sae_scale():
@@ -246,13 +283,6 @@ def table_sae_scale():
         body.append(f"{name} & {row['ratio']:.2f} & {row['NN_R@1']:.3f} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
     write("tab_sae_scale.tex", "\n".join(body))
-    dead = scaled.get("dead_latent_fraction")
-    mse = scaled.get("final_train_mse")
-    if dead is not None:
-        write("sae_scale_facts.tex",
-              f"\\newcommand{{\\saeDead}}{{{dead * 100:.1f}\\%}}\n"
-              f"\\newcommand{{\\saeMse}}{{{mse:.2e}}}\n"
-              f"\\newcommand{{\\saeImages}}{{{scaled.get('images')}}}\n")
 
 
 def table_seed():
@@ -261,7 +291,7 @@ def table_seed():
             "domain & encoder & spread mean $\\pm$ sd & oracle mean $\\pm$ sd \\\\",
             "\\midrule"]
     for key, row in data.items():
-        body.append(f"{key.split('/')[0]} & {key.split('/')[1].replace('_', chr(92) + '_')} & "
+        body.append(f"{escape(domain_label(key.split('/')[0]))} & {escape(key.split('/')[1])} & "
                     f"{row['spread_mean']:.3f} $\\pm$ {row['spread_std']:.3f} & "
                     f"{row['oracle_mean']:+.1f} $\\pm$ {row['oracle_std']:.1f}\\% \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
@@ -297,7 +327,7 @@ def table_protocol():
         ci_text = (f"{interval['delta_mean']:+.3f} "
                    f"[{interval['delta_ci95'][0]:+.3f}, {interval['delta_ci95'][1]:+.3f}]"
                    if interval else "--")
-        body.append(f"{key} & raw & {row['raw']['R@1']:.3f} & {row['raw']['mAP']:.3f} & "
+        body.append(f"{escape(key)} & raw & {row['raw']['R@1']:.3f} & {row['raw']['mAP']:.3f} & "
                     f"{row['raw']['auroc_known_vs_unknown']:.3f} & {ci_text} \\\\")
         body.append(f" & rotation & {row['rotation']['R@1']:.3f} & "
                     f"{row['rotation']['mAP']:.3f} & "
@@ -314,7 +344,7 @@ def table_render_controls():
         break
     body = ["\\begin{tabular}{l" + "r" * len(encoders) + "}", "\\toprule",
             "rendering setting & " + " & ".join(
-                e.replace("_", chr(92) + "_") for e in encoders) + " \\\\", "\\midrule"]
+                escape(e) for e in encoders) + " \\\\", "\\midrule"]
     for name, row in data.items():
         cells = []
         for encoder in encoders:
@@ -331,8 +361,9 @@ def table_downstream():
             "encoder & setting & acc & NMI & ARI & NN\\_R@1 \\\\", "\\midrule"]
     for encoder, domains in data.items():
         for domain, rows in domains.items():
-            label = domain if domain != "pooled" else f"pooled ({rows['contents']} contents)"
-            body.append(f"{encoder.replace('_', chr(92) + '_')} & {label}, raw & "
+            label = (domain_label(domain) if domain != "pooled"
+                     else f"pooled ({rows['contents']} contents)")
+            body.append(f"{escape(encoder)} & {label}, raw & "
                         f"{rows['raw']['classification']:.3f} & "
                         f"{rows['raw']['clustering']['nmi']:.3f} & "
                         f"{rows['raw']['clustering']['ari']:.3f} & "
@@ -356,7 +387,7 @@ def table_selection():
     for domain, row in data.items():
         if domain == "in_domain_sae_quality":
             continue
-        body.append(f"{domain} & dense (no selection) & 8192 & {row['dense']['NN_R@1']:.3f} \\\\")
+        body.append(f"{escape(domain)} & dense (no selection) & 8192 & {row['dense']['NN_R@1']:.3f} \\\\")
         body.append(f" & global top-$k$ (as released) & {row['mean_kept']['global_topk']:.0f} & "
                     f"{row['global_topk']['NN_R@1']:.3f} \\\\")
         body.append(f" & per-stream top-$k$ & {row['mean_kept']['per_stream_topk']:.0f} & "
@@ -390,7 +421,8 @@ def table_augmentation():
         left, _ = split_by_content(contents)
         basis = fit_basis(features, contents, layouts, rank=4, mask=left)
         matched = metrics(project(features, basis, 4), contents, layouts)
-        body.append(f"{key.replace('_', chr(92) + '_')} & raw & "
+        label_key = "/".join([domain_label(key.split("/")[0])] + key.split("/")[1:])
+        body.append(f"{escape(label_key)} & raw & "
                     f"{row['raw']['ratio']:.2f} & {row['raw']['NN_R@1']:.3f} \\\\")
         body.append(f" & real pairs & {matched['ratio']:.2f} & {matched['NN_R@1']:.3f} \\\\")
         body.append(f" & augmentations only & "
@@ -403,6 +435,21 @@ def table_augmentation():
     write("tab_augmentation.tex", "\n".join(body))
 
 
+def table_condition():
+    data = load("augmentation_condition.json") or {}
+    body = ["\\begin{tabular}{lrrrr}", "\\toprule",
+            "setting & max cosine & raw & true subspace & augmentations \\\\",
+            "\\midrule"]
+    for key, row in data.items():
+        domain, encoder = key.split("/")
+        label = "/".join([domain_label(domain), encoder])
+        body.append(f"{escape(label)} & {row['max_cosine']:.2f} & "
+                    f"{row['raw_recall']:.3f} & {row['true_basis_recall']:.3f} & "
+                    f"{row['augmentation_basis_recall']:.3f} \\\\")
+    body += ["\\bottomrule", "\\end{tabular}", ""]
+    write("tab_condition.tex", "\n".join(body))
+
+
 def table_stats():
     data = load("retrieval_stats.json") or {}
     body = ["\\begin{tabular}{lrrrr}", "\\toprule",
@@ -410,7 +457,7 @@ def table_stats():
             "\\midrule"]
     for key, row in data.items():
         mark = "yes" if row["significant"] else "no"
-        body.append(f"{key.replace('_', chr(92) + '_')} & {row['delta_mean']:+.3f} & "
+        body.append(f"{escape(key)} & {row['delta_mean']:+.3f} & "
                     f"[{row['delta_ci95'][0]:+.3f}, {row['delta_ci95'][1]:+.3f}] & "
                     f"{row['effect_size']:.2f} & {mark} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
@@ -420,11 +467,12 @@ def table_stats():
 def table_rank_selection():
     data = load("rank_selection.json") or {}
     body = ["\\begin{tabular}{llrrrr}", "\\toprule",
-            "domain & encoder & energy $r$ & held-out $r$ & fixed $r{=}4$ & held-out score \\\\",
+            "domain & encoder & energy $r$ & held-out $r$ & fixed $r{=}4$ & score \\\\",
             "\\midrule"]
     for key, row in data.items():
         domain, encoder = key.split("/")
-        body.append(f"{domain} & {encoder.replace('_', chr(92) + '_')} & "
+        domain = domain_label(domain)
+        body.append(f"{domain} & {escape(encoder)} & "
                     f"{row['energy_rank']} & {row['heldout_rank']} & "
                     f"{row['fixed_r4']:.3f} & {row['heldout_rank_score']:.3f} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
@@ -435,6 +483,7 @@ def table_fair():
     data = load("fair_baselines.json") or {}
     if not data:
         return
+    labels = {"PCA removal (no labels, no pairs)": "PCA removal (unsupervised)"}
     setting = next(iter(data))
     methods = list(data[setting])
     body = ["\\begin{tabular}{llrrr}", "\\toprule",
@@ -442,8 +491,8 @@ def table_fair():
     for key, row in data.items():
         for index, method in enumerate(methods):
             stats = row[method]
-            name = method.replace(" (", " (").replace("_", chr(92) + "_")
-            first = key.replace("_", chr(92) + "_") if index == 0 else ""
+            name = escape(labels.get(method, method))
+            first = escape(key) if index == 0 else ""
             body.append(f"{first} & {name} & {stats['ratio']:.2f} & "
                         f"{stats['NN_R@1']:.3f} & {stats['probe_accuracy']:.3f} \\\\")
         body.append("\\midrule")
@@ -468,7 +517,7 @@ def table_frontier():
         for clip in clips:
             value = row["frontier"][clip]
             cells.append(f"{value['gain_percent']:+.0f}\\% & {value['recall']:.3f}")
-        body.append(f"{domain} & {encoder.replace('_', chr(92) + '_')} & "
+        body.append(f"{domain} & {escape(encoder)} & "
                     + " & ".join(cells) + " \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
     write("tab_frontier.tex", "\n".join(body))
@@ -495,7 +544,7 @@ def table_validation():
         probe_text = ("n/a" if degenerate else
                       f"{probe['raw']:.2f}/{probe['optimised']:.2f}")
         body.append(
-            f"{domain} & {encoder.replace('_', chr(92) + '_')} & {plugin:+.1f}\\% & "
+            f"{domain} & {escape(encoder)} & {plugin:+.1f}\\% & "
             f"{sum(gains) / len(gains):+.1f}\\% & {np.std(gains):.1f} & "
             f"{realisation:+.1f}\\% & {probe_text} \\\\")
     body += ["\\bottomrule", "\\end{tabular}", ""]
@@ -513,6 +562,7 @@ def main():
     table_method()
     table_baselines()
     table_sae()
+    table_sae_spread()
     table_sae_scale()
     table_seed()
     table_transfer()
@@ -521,6 +571,7 @@ def main():
     table_downstream()
     table_selection()
     table_augmentation()
+    table_condition()
     table_stats()
     table_rank_selection()
     table_fair()

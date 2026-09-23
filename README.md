@@ -36,9 +36,13 @@ that the earlier ones write under `outputs/`:
 
 The remaining grids are built from public sources by `domains/*.py` (scan grids
 downloaded through HuggingFace, arXiv first pages through the arXiv API,
-identity documents from a MIDV-500 archive, synthetic shapes) and by
-`topic_layout_probe.py` (topic grids over DBpedia-14, 20 Newsgroups and
-FLORES-200). Grids land under `dataset/`, except the document grid the paper
+identity documents from the filtered MIDV-500 distribution, synthetic shapes)
+and by `topic_layout_probe.py` (topic grids over DBpedia-14, 20 Newsgroups and
+FLORES-200). The identity grid is the filtered MIDV-500 distribution
+(MIDV-500-filter), obtained from the Kaggle mirror
+`cheickahmedcoulibaly/midv500-filtered`, kept as `archive.zip` and unpacked by
+`domains/midv_from_zip.py`. Grids land under
+`dataset/`, except the document grid the paper
 reports, which is `survey_grid/`. A survey report has to keep the name the later
 scripts expect: `outputs/backbone_survey.json`, `shape_survey.json`,
 `funsd_scan_survey.json`, `docvqa_scan_survey.json`,

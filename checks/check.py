@@ -50,6 +50,49 @@ def main():
         if not os.path.exists(os.path.join(PAPER, target)):
             problems.append(f"missing figure: {target}")
 
+    allowed_environments = {
+        "abstract", "equation", "itemize", "enumerate", "table", "tabular",
+        "figure", "center", "algorithm", "algorithmic", "document",
+    }
+    for name in SECTIONS if have_paper else []:
+        body = read(os.path.join(PAPER, name))
+        for env in sorted(set(re.findall(r"\\begin\{(\w+)\}", body))):
+            if env not in allowed_environments:
+                problems.append(f"{name}: environment {env} may need a package")
+
+    column_rule = re.compile(r"[lcrp]")
+    rule_names = ("\\toprule", "\\midrule", "\\bottomrule", "\\cmidrule")
+    for name in sorted(os.listdir(os.path.join(PAPER, "tables"))):
+        if not name.endswith(".tex"):
+            continue
+        body = read(os.path.join(PAPER, "tables", name))
+        match = re.search(r"\\begin\{tabular\}\{([^}]*)\}", body)
+        if not match:
+            continue
+        n_columns = len(column_rule.findall(match.group(1)))
+        rows = body[match.end():].split("\\end{tabular}")[0].split("\\\\")
+        for index, row in enumerate(rows):
+            row = row.strip()
+            if not row or any(row.startswith(rule) for rule in rule_names):
+                continue
+            cells = len(row.split("&"))
+            if cells != n_columns:
+                problems.append(
+                    f"tables/{name}: row {index + 1} has {cells} cells for "
+                    f"{n_columns} columns")
+        for index, line in enumerate(body.split("\n"), 1):
+            in_math = False
+            for position, char in enumerate(line):
+                if char == "$":
+                    in_math = not in_math
+                    continue
+                if in_math or char not in "%#_":
+                    continue
+                if position and line[position - 1] == "\\":
+                    continue
+                problems.append(
+                    f"tables/{name}: line {index} has an unescaped {char!r}")
+
     labels = set(re.findall(r"\\label\{([^}]*)\}", text)) if have_paper else set()
     refs = set(re.findall(r"\\ref\{([^}]*)\}", text)) if have_paper else set()
     for ref in sorted(refs - labels):
