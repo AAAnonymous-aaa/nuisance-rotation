@@ -32,7 +32,6 @@ that the earlier ones write under `outputs/`:
     python method/fair_baselines.py
     python tables/make_tables.py
     python figures/make_figures.py
-    python checks/check.py
 
 The remaining grids are built from public sources by `domains/*.py` (scan grids
 downloaded through HuggingFace, arXiv first pages through the arXiv API,
@@ -69,4 +68,4 @@ memory stays around 2.4 GB with one encoder resident.
                              retrieval intervals, downstream tasks
     autoencoder/*.py         SAE training at scale, top-k budget, selection rules
     tables/, figures/        rebuild the paper's tables and figures from outputs/
-    checks/*.py              numeric assertions on the reports, language checks
+    checks/*.py              the language controls behind the script-locality claim
